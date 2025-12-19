@@ -29,10 +29,11 @@ def main():
     print("=== ROBOT SEGUIDOR DE LINEA ===")
     print(f"Umbral: {LINE_THRESHOLD}")
     
-    v = 5
-    dv = 8
+    v = 3
     
     counter = 0
+    last_turn = "right"
+    
     while True:
         # Leer sensores
         response_left = sim.readVisionSensor(leftSensor)
@@ -52,15 +53,29 @@ def main():
             print(f"L:{intensity_left:.3f}({left_on_line}) R:{intensity_right:.3f}({right_on_line})")
             counter = 0
         
-        # Velocidades base
-        sim.setJointTargetVelocity(leftJoint, v)
-        sim.setJointTargetVelocity(rightJoint, v)
-        
-        # Logica de seguimiento (igual que el Lua original)
-        if right_on_line and not left_on_line:
-            sim.setJointTargetVelocity(rightJoint, v + dv)
-        if left_on_line and not right_on_line:
-            sim.setJointTargetVelocity(leftJoint, v + dv)
+        # Logica de seguimiento
+        if left_on_line and right_on_line:
+            # Ambos en linea -> recto
+            sim.setJointTargetVelocity(leftJoint, v)
+            sim.setJointTargetVelocity(rightJoint, v)
+        elif left_on_line:
+            # Linea a la izquierda -> girar izquierda (frenar izquierda, acelerar derecha)
+            sim.setJointTargetVelocity(leftJoint, v * 0.2)
+            sim.setJointTargetVelocity(rightJoint, v * 2)
+            last_turn = "left"
+        elif right_on_line:
+            # Linea a la derecha -> girar derecha (acelerar izquierda, frenar derecha)
+            sim.setJointTargetVelocity(leftJoint, v * 2)
+            sim.setJointTargetVelocity(rightJoint, v * 0.2)
+            last_turn = "right"
+        else:
+            # Perdio la linea -> buscar en la ultima direccion
+            if last_turn == "left":
+                sim.setJointTargetVelocity(leftJoint, -v)
+                sim.setJointTargetVelocity(rightJoint, v)
+            else:
+                sim.setJointTargetVelocity(leftJoint, v)
+                sim.setJointTargetVelocity(rightJoint, -v)
         
         sim.step()
 
