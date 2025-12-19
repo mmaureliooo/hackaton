@@ -25,29 +25,35 @@ class Sensor:
 		return None
 
 def detect_line(image, resolution):
-	if image is None:
-		return None
-	
-	# Convertir a HSV
-	hsv = cv.cvtColor(image, cv.COLOR_RGB2HSV)
-	
-	# Máscara para línea negra
-	lower_black = np.array([0, 0, 0])
-	upper_black = np.array([180, 255, 50])
-	mask = cv.inRange(hsv, lower_black, upper_black)
-	
-	# Analizar solo la parte inferior de la imagen
-	height = resolution[1]
-	bottom_section = mask[height//2:, :]
-	
-	mask_moment = cv.moments(bottom_section)
-	if mask_moment["m00"] > 0:
-		center_x = int(mask_moment["m10"] / mask_moment["m00"])
-		# Posición relativa (-1 a 1)
-		relative_pos = (center_x - resolution[0] / 2) / (resolution[0] / 2)
-		return relative_pos
-	
-	return None
+    if image is None:
+        return None
+
+    # Convertir a HSV
+    hsv = cv.cvtColor(image, cv.COLOR_RGB2HSV)
+
+    # Máscara para línea roja (considerando los dos rangos de rojo en HSV)
+    lower_red_1 = np.array([0, 100, 100])
+    upper_red_1 = np.array([10, 255, 255])
+    lower_red_2 = np.array([160, 100, 100])
+    upper_red_2 = np.array([180, 255, 255])
+
+    mask1 = cv.inRange(hsv, lower_red_1, upper_red_1)
+    mask2 = cv.inRange(hsv, lower_red_2, upper_red_2)
+    mask = cv.bitwise_or(mask1, mask2)
+
+    # Analizar solo la parte inferior de la imagen
+    height = resolution[1]
+    bottom_section = mask[height//2:, :]
+
+    mask_moment = cv.moments(bottom_section)
+    if mask_moment["m00"] > 0:
+        center_x = int(mask_moment["m10"] / mask_moment["m00"])
+        # Posición relativa (-1 a 1)
+        relative_pos = (center_x - resolution[0] / 2) / (resolution[0] / 2)
+        return relative_pos
+
+    return None
+
 
 def detect_obstacle(image, resolution):
 	if image is None:
