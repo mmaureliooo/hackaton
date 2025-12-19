@@ -1,120 +1,81 @@
 from coppeliasim_zmqremoteapi_client import RemoteAPIClient
 
-# Estados del robot
-SIGUIENDO_LINEA = 0
-BUSCANDO_LINEA = 1
-ESQUIVANDO_OBSTACULO = 2
-RODEANDO_OBSTACULO = 3
+client = RemoteAPIClient()
+sim = client.require('sim')
 
-# Configuracion de velocidades
-#siempre va a tardar un poco mas en girar para que pille bien los sensores
-BASE_SPEED = 2.0
-TURN_SPEED = 1.5
+# Umbral: linea ~0.75, suelo ~0.83
+LINE_THRESHOLD = 0.80
+
+def get_intensity(response):
+    """Extrae la intensidad promedio (R+G+B)/3"""
+    if isinstance(response, tuple) and response[0] == 1:
+        data = response[1]
+        r = data[11]
+        g = data[12]
+        b = data[13]
+        return (r + g + b) / 3.0
+    return 0.85  # Valor por defecto (suelo)
 
 def main():
-    client = RemoteAPIClient()
-    sim = client.require('sim')
-
     sim.setStepping(True)
     sim.startSimulation()
-
-    # Obtener handles del robot - motores
-    leftMotor = sim.getObject('/LineTracer/DynamicLeftJoint')
-    rightMotor = sim.getObject('/LineTracer/DynamicRightJoint')
     
-    # Sensores de proximidad para detectar la linea
+    # Obtener handles
+    leftJoint = sim.getObject('/LineTracer/DynamicLeftJoint')
+    rightJoint = sim.getObject('/LineTracer/DynamicRightJoint')
     leftSensor = sim.getObject('/LineTracer/LeftSensor')
     rightSensor = sim.getObject('/LineTracer/RightSensor')
-    middleSensor = sim.getObject('/LineTracer/MiddleSensor')
     
-    state = BUSCANDO_LINEA
-    esquive_counter = 0
-    rodeo_counter = 0
-
-    sim.addLog(sim.verbosity_scriptinfos, "Iniciando robot seguidor de linea con esquive de obstaculos")
-
+    print("=== ROBOT SEGUIDOR DE LINEA ===")
+    print(f"Umbral: {LINE_THRESHOLD}")
+    
+    v = 3
+    
+    counter = 0
+    last_turn = "right"
+    
     while True:
-        # Leer sensores de proximidad
-        left_result = sim.readProximitySensor(leftSensor)
-        right_result = sim.readProximitySensor(rightSensor)
-        middle_result = sim.readProximitySensor(middleSensor)
+        # Leer sensores
+        response_left = sim.readVisionSensor(leftSensor)
+        response_right = sim.readVisionSensor(rightSensor)
         
-        # Detectar linea (sensor detecta algo = linea debajo)
-        left_line = left_result[0] > 0
-        right_line = right_result[0] > 0
-        middle_line = middle_result[0] > 0
+        # Extraer intensidades
+        intensity_left = get_intensity(response_left)
+        intensity_right = get_intensity(response_right)
         
-        # Distancia del sensor central (si detecta algo)
-        middle_distance = middle_result[1] if middle_result[0] > 0 else float('inf')
+        # Detectar linea (intensidad baja = linea)
+        left_on_line = intensity_left < LINE_THRESHOLD
+        right_on_line = intensity_right < LINE_THRESHOLD
         
-        # Detectar obstaculo (objeto muy cerca en el sensor central)
-        obstacle_detected = middle_result[0] > 0 and middle_distance < 0.05 #por 0.05 por la distancia al objeto
+        # Debug
+        counter += 1
+        if counter >= 15:
+            print(f"L:{intensity_left:.3f}({left_on_line}) R:{intensity_right:.3f}({right_on_line})")
+            counter = 0
         
-        line_detected = left_line or right_line or (middle_line and not obstacle_detected)
-        
-        # Maquina de estados
-        match state:
-            case 0:  # SIGUIENDO_LINEA
-                if obstacle_detected:
-                    sim.addLog(sim.verbosity_scriptinfos, "Obstaculo detectado! Iniciando esquive")
-                    state = ESQUIVANDO_OBSTACULO
-                    esquive_counter = 0
-                elif middle_line and not left_line and not right_line:
-                    # Linea centrada, ir recto
-                    sim.setJointTargetVelocity(leftMotor, BASE_SPEED)
-                    sim.setJointTargetVelocity(rightMotor, BASE_SPEED)
-                elif left_line and not right_line:
-                    # Linea a la izquierda, girar izquierda
-                    sim.setJointTargetVelocity(leftMotor, BASE_SPEED * 0.5) #el 0.5 es para que el giro no sea ni muy abierto ni muy cerrado, cuanto mas pequeño el valo, mas cerrado el angulo de giro
-                    sim.setJointTargetVelocity(rightMotor, BASE_SPEED)
-                elif right_line and not left_line:
-                    # Linea a la derecha, girar derecha
-                    sim.setJointTargetVelocity(leftMotor, BASE_SPEED)
-                    sim.setJointTargetVelocity(rightMotor, BASE_SPEED * 0.5) #el 0.5 es para que el giro no sea ni muy abierto ni muy cerrado, cuanto mas pequeño el valo, mas cerrado el angulo de giro
-                elif middle_line:
-                    # Linea detectada en el centro
-                    sim.setJointTargetVelocity(leftMotor, BASE_SPEED)
-                    sim.setJointTargetVelocity(rightMotor, BASE_SPEED)
-                else:
-                    # Perdimos la linea
-                    state = BUSCANDO_LINEA
-            
-            case 1:  # BUSCANDO_LINEA
-                if obstacle_detected:
-                    state = ESQUIVANDO_OBSTACULO
-                    esquive_counter = 0
-                elif line_detected:
-                    sim.addLog(sim.verbosity_scriptinfos, "Linea encontrada!")
-                    state = SIGUIENDO_LINEA
-                else:
-                    # Girar para buscar la linea
-                    sim.setJointTargetVelocity(leftMotor, TURN_SPEED)
-                    sim.setJointTargetVelocity(rightMotor, -TURN_SPEED)
-            
-            case 2:  # ESQUIVANDO_OBSTACULO
-                # Girar a la derecha para esquivar
-                sim.setJointTargetVelocity(leftMotor, TURN_SPEED)
-                sim.setJointTargetVelocity(rightMotor, -TURN_SPEED * 0.5) #el 0.5 es para que el giro no sea ni muy abierto ni muy cerrado, cuanto mas pequeño el valo, mas cerrado el angulo de giro
-                esquive_counter += 1
-                
-                if esquive_counter > 30:
-                    state = RODEANDO_OBSTACULO
-                    rodeo_counter = 0
-            
-            case 3:  # RODEANDO_OBSTACULO
-                # Avanzar rodeando el obstaculo
-                sim.setJointTargetVelocity(leftMotor, BASE_SPEED)
-                sim.setJointTargetVelocity(rightMotor, BASE_SPEED * 0.5) #el 0.5 es para que el giro no sea ni muy abierto ni muy cerrado, cuanto mas pequeño el valo, mas cerrado el angulo de giro
-                rodeo_counter += 1
-                
-                if line_detected and rodeo_counter > 20: #20 porque es valor sacado de pruebas y errores del robot
-                    sim.addLog(sim.verbosity_scriptinfos, "Linea recuperada despues del esquive!")
-                    state = SIGUIENDO_LINEA
-                elif rodeo_counter > 100: #100 porque es valor sacado de pruebas y errores del robot, y tiene que ser mayor que el 20 porque hace mas código y necesita más tiempo para hacer las cosas
-                    state = BUSCANDO_LINEA
-            
-            case _:
-                state = BUSCANDO_LINEA
+        # Logica de seguimiento
+        if left_on_line and right_on_line:
+            # Ambos en linea -> recto
+            sim.setJointTargetVelocity(leftJoint, v)
+            sim.setJointTargetVelocity(rightJoint, v)
+        elif left_on_line:
+            # Linea a la izquierda -> girar izquierda (frenar izquierda, acelerar derecha)
+            sim.setJointTargetVelocity(leftJoint, v * 0.2)
+            sim.setJointTargetVelocity(rightJoint, v * 2)
+            last_turn = "left"
+        elif right_on_line:
+            # Linea a la derecha -> girar derecha (acelerar izquierda, frenar derecha)
+            sim.setJointTargetVelocity(leftJoint, v * 2)
+            sim.setJointTargetVelocity(rightJoint, v * 0.2)
+            last_turn = "right"
+        else:
+            # Perdio la linea -> buscar en la ultima direccion
+            if last_turn == "left":
+                sim.setJointTargetVelocity(leftJoint, -v)
+                sim.setJointTargetVelocity(rightJoint, v)
+            else:
+                sim.setJointTargetVelocity(leftJoint, v)
+                sim.setJointTargetVelocity(rightJoint, -v)
         
         sim.step()
 
