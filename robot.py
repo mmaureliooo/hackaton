@@ -77,6 +77,7 @@ def main():
 	sim.setStepping(True)
 	sim.startSimulation()
 	
+	# Diccionario que almacena los manejadores de los motores y sensores del robot
 	handles = dict(
 		leftMotor=sim.getObject("/PioneerP3DX/leftMotor"),
 		rightMotor=sim.getObject("/PioneerP3DX/rightMotor"),
@@ -118,50 +119,80 @@ def main():
 		if key == 27:
 			break
 		
-		# Máquina de estados
+		# Máquina de estados:
 		match state:
+
+			# Estado en el que el robot sigue la línea
 			case State.FOLLOWING_LINE:
+
+				# Si se detecta un obstáculo, detener el robot y esperar
 				if obstacle_detected:
 					sim.setJointTargetVelocity(handles['leftMotor'], 0)
 					sim.setJointTargetVelocity(handles['rightMotor'], 0)
 					state = State.WAITING_OBSTACLE
+
+				# Si se detecta la línea, ajustar el movimiento
 				elif line_detected:
+
+					# Línea centrada: avanzar recto
 					if abs(line_position) < 0.2:
 						sim.setJointTargetVelocity(handles['leftMotor'], BASE_SPEED)
 						sim.setJointTargetVelocity(handles['rightMotor'], BASE_SPEED)
+
+					# Línea a la izquierda: corregir hacia la izquierda
 					elif line_position < 0:
 						correction = abs(line_position) * BASE_SPEED
 						sim.setJointTargetVelocity(handles['leftMotor'], BASE_SPEED - correction)
 						sim.setJointTargetVelocity(handles['rightMotor'], BASE_SPEED)
+
+					# Línea a la derecha: corregir hacia la derecha
 					else:
 						correction = abs(line_position) * BASE_SPEED
 						sim.setJointTargetVelocity(handles['leftMotor'], BASE_SPEED)
 						sim.setJointTargetVelocity(handles['rightMotor'], BASE_SPEED - correction)
+
+				# Si no se detecta la línea, pasar a buscarla
 				else:
 					state = State.SEARCHING_LINE
 					
+			# Estado en el que el robot busca la línea
 			case State.SEARCHING_LINE:
+
+				# Si se detecta un obstáculo, detener el robot
 				if obstacle_detected:
 					sim.setJointTargetVelocity(handles['leftMotor'], 0)
 					sim.setJointTargetVelocity(handles['rightMotor'], 0)
 					state = State.WAITING_OBSTACLE
+
+				# Si se encuentra la línea, volver a seguirla
 				elif line_detected:
 					state = State.FOLLOWING_LINE
+
+				# Si no hay línea ni obstáculo, girar para buscarla
 				else:
 					sim.setJointTargetVelocity(handles['leftMotor'], TURN_SPEED)
 					sim.setJointTargetVelocity(handles['rightMotor'], -TURN_SPEED)
 					
+			# Estado en el que el robot espera a que desaparezca el obstáculo
 			case State.WAITING_OBSTACLE:
+
+				# Si ya no hay obstáculo y hay línea, seguirla
 				if not obstacle_detected and line_detected:
 					state = State.FOLLOWING_LINE
+
+				# Si no hay obstáculo pero no hay línea, buscarla
 				elif not obstacle_detected:
 					state = State.SEARCHING_LINE
+
+				# Si el obstáculo sigue presente, permanecer detenido
 				else:
 					sim.setJointTargetVelocity(handles['leftMotor'], 0)
 					sim.setJointTargetVelocity(handles['rightMotor'], 0)
 			
+			# Caso por defecto: no hacer nada
 			case _:
 				pass
+
 		
 		sim.step()
 	
