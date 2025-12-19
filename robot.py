@@ -1,5 +1,5 @@
 # Robot seguidor de linea con deteccion de obstaculos
-# Sigue una linea negra y se para si detecta algo rojo
+# Sigue una linea roja y se para si detecta algo verde
 
 from coppeliasim_zmqremoteapi_client import RemoteAPIClient
 import cv2 as cv
@@ -15,7 +15,7 @@ class State:
 	SEARCHING_LINE = 1
 	WAITING_OBSTACLE = 2
 
-# Detecta la linea negra y devuelve su posicion (-1 izq, 0 centro, 1 der)
+# Detecta la linea roja y devuelve su posicion (-1 izq, 0 centro, 1 der)
 def detect_line(image, resolution):
 	if image is None:
 		return None
@@ -23,10 +23,15 @@ def detect_line(image, resolution):
 	# Convertir a HSV
 	hsv = cv.cvtColor(image, cv.COLOR_RGB2HSV)
 	
-	# Mascara para negro
-	lower_black = np.array([0, 0, 0])
-	upper_black = np.array([180, 255, 50])
-	mask = cv.inRange(hsv, lower_black, upper_black)
+	# Mascara para rojo (el rojo tiene dos rangos en HSV)
+	lower_red_1 = np.array([0, 100, 100])
+	upper_red_1 = np.array([10, 255, 255])
+	lower_red_2 = np.array([160, 100, 100])
+	upper_red_2 = np.array([180, 255, 255])
+	
+	mask_1 = cv.inRange(hsv, lower_red_1, upper_red_1)
+	mask_2 = cv.inRange(hsv, lower_red_2, upper_red_2)
+	mask = cv.bitwise_or(mask_1, mask_2)
 	
 	# Solo miramos la parte de abajo de la imagen
 	height = resolution[1]
@@ -43,26 +48,21 @@ def detect_line(image, resolution):
 	
 	return None
 
-# Detecta si hay un objeto rojo (obstaculo)
+# Detecta si hay un objeto verde (obstaculo)
 def detect_obstacle(image, resolution):
 	if image is None:
 		return False
 	
 	hsv = cv.cvtColor(image, cv.COLOR_RGB2HSV)
 	
-	# El rojo en HSV tiene dos rangos
-	lower_red_1 = np.array([0, 100, 100])
-	upper_red_1 = np.array([10, 255, 255])
-	lower_red_2 = np.array([160, 100, 100])
-	upper_red_2 = np.array([180, 255, 255])
+	# Mascara para verde
+	lower_green = np.array([35, 100, 100])
+	upper_green = np.array([85, 255, 255])
+	mask = cv.inRange(hsv, lower_green, upper_green)
 	
-	mask_1 = cv.inRange(hsv, lower_red_1, upper_red_1)
-	mask_2 = cv.inRange(hsv, lower_red_2, upper_red_2)
-	mask = cv.bitwise_or(mask_1, mask_2)
-	
-	# Si hay muchos pixeles rojos, hay obstaculo
-	red_pixels = cv.countNonZero(mask)
-	return red_pixels > 1000
+	# Si hay muchos pixeles verdes, hay obstaculo
+	green_pixels = cv.countNonZero(mask)
+	return green_pixels > 1000
 
 def main():
 	# Conectar con CoppeliaSim
