@@ -1,32 +1,3 @@
-<<<<<<< HEAD
-# =============================================================================
-# ROBOT SEGUIDOR DE LÍNEA CON DETECCIÓN DE OBSTÁCULOS
-# =============================================================================
-# Este programa controla un robot Pioneer P3DX en CoppeliaSim para que:
-# 1. Siga una línea negra en el suelo usando visión por computadora
-# 2. Se detenga cuando detecte un obstáculo rojo en su camino
-# 3. Continúe siguiendo la línea cuando el obstáculo desaparezca
-# =============================================================================
-
-# -----------------------------------------------------------------------------
-# IMPORTACIÓN DE LIBRERÍAS
-# -----------------------------------------------------------------------------
-from coppeliasim_zmqremoteapi_client import RemoteAPIClient  # API para conectar con CoppeliaSim
-import cv2 as cv      # OpenCV para procesamiento de imágenes
-import numpy as np    # NumPy para operaciones con arrays
-import math           # Operaciones matemáticas básicas
-
-# -----------------------------------------------------------------------------
-# CONSTANTES DE CONFIGURACIÓN
-# -----------------------------------------------------------------------------
-OBSTACLE_DISTANCE = 0.3  # Distancia mínima para detectar obstáculo (metros)
-BASE_SPEED = 2.0         # Velocidad base de los motores (rad/s)
-TURN_SPEED = 1.0         # Velocidad de giro cuando busca la línea (rad/s)
-
-# -----------------------------------------------------------------------------
-# CLASE STATE - Define los estados de la máquina de estados del robot
-# -----------------------------------------------------------------------------
-=======
 # Robot seguidor de linea con deteccion de obstaculos
 # Sigue una linea roja y se para si detecta algo verde
 
@@ -39,48 +10,12 @@ BASE_SPEED = 2.0
 TURN_SPEED = 1.0
 
 # Estados del robot
->>>>>>> 22179d3a0ff361a9a51d3535226abb4400bb09c8
 class State:
 	FOLLOWING_LINE = 0    # Estado: Robot siguiendo la línea negra
 	SEARCHING_LINE = 1    # Estado: Robot buscando la línea (girando)
 	WAITING_OBSTACLE = 2  # Estado: Robot detenido esperando que se retire el obstáculo
 
-<<<<<<< HEAD
-# -----------------------------------------------------------------------------
-# CLASE SENSOR - Wrapper para leer sensores de proximidad ultrasónicos
-# -----------------------------------------------------------------------------
-class Sensor:
-	def __init__(self, sim, handle):
-		"""
-		Constructor del sensor de proximidad.
-		
-		Args:
-			sim: Objeto de simulación de CoppeliaSim
-			handle: Handle del sensor en la simulación
-		"""
-		self.sim = sim
-		self.handle = handle
-	
-	def read(self):
-		"""
-		Lee la distancia detectada por el sensor ultrasónico.
-		
-		Returns:
-			float: Distancia al objeto detectado en metros, o None si no detecta nada
-		"""
-		result = self.sim.readProximitySensor(self.handle)
-		if result[0]:  # Si detectó algo
-			point = result[1]  # Punto de detección [x, y, z]
-			# Calcular distancia euclidiana al punto detectado
-			return math.sqrt(point[0]**2 + point[1]**2 + point[2]**2)
-		return None
-
-# -----------------------------------------------------------------------------
-# FUNCIÓN DETECT_LINE - Detecta la posición de la línea negra en la imagen
-# -----------------------------------------------------------------------------
-=======
 # Detecta la linea roja y devuelve su posicion (-1 izq, 0 centro, 1 der)
->>>>>>> 22179d3a0ff361a9a51d3535226abb4400bb09c8
 def detect_line(image, resolution):
 	"""
 	Detecta una línea negra en la imagen usando máscaras de color HSV.
@@ -107,76 +42,11 @@ def detect_line(image, resolution):
 	# HSV facilita la detección de colores independientemente de la iluminación
 	hsv = cv.cvtColor(image, cv.COLOR_RGB2HSV)
 	
-<<<<<<< HEAD
-	# Definir rango de color para detectar negro
-	# H: 0-180 (cualquier tono), S: 0-255 (cualquier saturación), V: 0-50 (brillo bajo = negro)
-	lower_black = np.array([0, 0, 0])
-	upper_black = np.array([180, 255, 50])
-	
-	# Crear máscara binaria: píxeles negros = 255 (blanco), resto = 0
-	mask = cv.inRange(hsv, lower_black, upper_black)
-	
-	# Analizar solo la mitad inferior de la imagen
-	# La línea está en el suelo, así que solo nos interesa la parte de abajo
-	height = resolution[1]
-	bottom_section = mask[height//2:, :]
-	
-	# Calcular momentos de la máscara para encontrar el centroide
-	# Los momentos son propiedades estadísticas de la forma
-	mask_moment = cv.moments(bottom_section)
-	
-	if mask_moment["m00"] > 0:  # m00 = área total de píxeles blancos
-		# Calcular coordenada X del centroide
-		# m10 = momento de primer orden en X, m00 = área
-		center_x = int(mask_moment["m10"] / mask_moment["m00"])
-		
-		# Convertir a posición relativa (-1 a 1)
-		# -1 = línea completamente a la izquierda
-		#  0 = línea en el centro
-		# +1 = línea completamente a la derecha
-		relative_pos = (center_x - resolution[0] / 2) / (resolution[0] / 2)
-		return relative_pos
-	
-	return None  # No se detectó la línea
-
-# -----------------------------------------------------------------------------
-# FUNCIÓN DETECT_OBSTACLE - Detecta obstáculos rojos en la imagen
-# -----------------------------------------------------------------------------
-def detect_obstacle(image, resolution):
-	"""
-	Detecta si hay un obstáculo de color rojo en la imagen.
-	
-	El algoritmo:
-	1. Convierte la imagen a HSV
-	2. Aplica dos máscaras para detectar rojo (el rojo está en dos rangos de H)
-	3. Combina las máscaras
-	4. Cuenta los píxeles rojos detectados
-	5. Si hay suficientes píxeles, se considera que hay obstáculo
-	
-	Args:
-		image: Imagen capturada por la cámara (formato RGB)
-		resolution: Resolución de la imagen [ancho, alto]
-	
-	Returns:
-		bool: True si se detecta un obstáculo rojo, False en caso contrario
-	"""
-	if image is None:
-		return False
-	
-	# Convertir a HSV para mejor detección de color
-	hsv = cv.cvtColor(image, cv.COLOR_RGB2HSV)
-	
-	# El color rojo en HSV está en dos rangos porque el Hue es circular
-	# Rango 1: Rojo con H bajo (0-10)
-	lower_red_1 = np.array([0, 100, 100])    # H=0, S=100, V=100
-	upper_red_1 = np.array([10, 255, 255])   # H=10, S=255, V=255
-=======
 	# Mascara para rojo (el rojo tiene dos rangos en HSV)
 	lower_red_1 = np.array([0, 100, 100])
 	upper_red_1 = np.array([10, 255, 255])
 	lower_red_2 = np.array([160, 100, 100])
 	upper_red_2 = np.array([180, 255, 255])
->>>>>>> 22179d3a0ff361a9a51d3535226abb4400bb09c8
 	
 	# Rango 2: Rojo con H alto (160-180)
 	lower_red_2 = np.array([160, 100, 100])  # H=160, S=100, V=100
@@ -189,14 +59,6 @@ def detect_obstacle(image, resolution):
 	# Combinar ambas máscaras con OR lógico
 	mask = cv.bitwise_or(mask_1, mask_2)
 	
-<<<<<<< HEAD
-	# Contar píxeles rojos (píxeles blancos en la máscara)
-	red_pixels = cv.countNonZero(mask)
-	
-	# Si hay más de 1000 píxeles rojos, hay un obstáculo
-	# Este umbral puede ajustarse según el tamaño del obstáculo
-	return red_pixels > 1000
-=======
 	# Solo miramos la parte de abajo de la imagen
 	height = resolution[1]
 	bottom_section = mask[height//2:, :]
@@ -227,20 +89,14 @@ def detect_obstacle(image, resolution):
 	# Si hay muchos pixeles verdes, hay obstaculo
 	green_pixels = cv.countNonZero(mask)
 	return green_pixels > 1000
->>>>>>> 22179d3a0ff361a9a51d3535226abb4400bb09c8
 
 # -----------------------------------------------------------------------------
 # FUNCIÓN MAIN - Bucle principal del programa
 # -----------------------------------------------------------------------------
 def main():
-<<<<<<< HEAD
-	"""
-	Función principal que ejecuta el control del robot.
-=======
 	# Conectar con CoppeliaSim
 	client = RemoteAPIClient()
 	sim = client.require('sim')
->>>>>>> 22179d3a0ff361a9a51d3535226abb4400bb09c8
 	
 	Flujo del programa:
 	1. Conectar con CoppeliaSim
@@ -252,37 +108,11 @@ def main():
 	   d. Controlar motores según el estado
 	"""
 	
-<<<<<<< HEAD
-	# -------------------------------------------------------------------------
-	# CONEXIÓN CON COPPELIASIM
-	# -------------------------------------------------------------------------
-	client = RemoteAPIClient()       # Crear cliente de conexión
-	sim = client.require('sim')      # Obtener objeto de simulación
-	
-	sim.setStepping(True)            # Modo stepping: control manual del tiempo
-	sim.startSimulation()            # Iniciar la simulación
-	
-	# -------------------------------------------------------------------------
-	# OBTENER HANDLES DE LOS COMPONENTES DEL ROBOT
-	# -------------------------------------------------------------------------
-	handles = dict(
-		# Motores de las ruedas
-		leftMotor=sim.getObject("/PioneerP3DX/leftMotor"),    # Motor izquierdo
-		rightMotor=sim.getObject("/PioneerP3DX/rightMotor"),  # Motor derecho
-		
-		# Cámara para visión por computadora
-		camera=sim.getObject("/PioneerP3DX/camera"),
-		
-		# Sensores ultrasónicos frontales (opcionales, para respaldo)
-		frontLeftSensor=sim.getObject("/PioneerP3DX/ultrasonicSensor[3]"),
-		frontRightSensor=sim.getObject("/PioneerP3DX/ultrasonicSensor[6]"),
-=======
 	# Handles del robot
 	handles = dict(
 		leftMotor=sim.getObject("/LineTracer/leftMotor"),
 		rightMotor=sim.getObject("/LineTracer/rightMotor"),
 		camera=sim.getObject("/LineTracer/camera"),
->>>>>>> 22179d3a0ff361a9a51d3535226abb4400bb09c8
 	)
 	
 	# -------------------------------------------------------------------------
@@ -290,11 +120,7 @@ def main():
 	# -------------------------------------------------------------------------
 	state = State.SEARCHING_LINE  # Estado inicial: buscar la línea
 	
-<<<<<<< HEAD
-	# Asegurar que el robot comience detenido
-=======
 	# Empezar parado
->>>>>>> 22179d3a0ff361a9a51d3535226abb4400bb09c8
 	sim.setJointTargetVelocity(handles['leftMotor'], 0)
 	sim.setJointTargetVelocity(handles['rightMotor'], 0)
 	
@@ -302,14 +128,7 @@ def main():
 	# BUCLE PRINCIPAL
 	# -------------------------------------------------------------------------
 	while True:
-<<<<<<< HEAD
-		# ---------------------------------------------------------------------
-		# CAPTURA Y PROCESAMIENTO DE IMAGEN
-		# ---------------------------------------------------------------------
-		# Obtener imagen raw de la cámara
-=======
 		# Leer camara
->>>>>>> 22179d3a0ff361a9a51d3535226abb4400bb09c8
 		raw_image, resolution = sim.getVisionSensorImg(handles['camera'])
 		
 		# Convertir datos raw a array de NumPy
@@ -324,29 +143,12 @@ def main():
 		# Voltear horizontalmente para corregir efecto espejo
 		image = np.fliplr(image)
 		
-<<<<<<< HEAD
-		# ---------------------------------------------------------------------
-		# DETECCIÓN DE OBSTÁCULOS Y LÍNEA
-		# ---------------------------------------------------------------------
-		# Detectar si hay un obstáculo rojo en la imagen
-		obstacle_detected = detect_obstacle(image, resolution)
-		
-		# Detectar la posición de la línea negra
-		line_position = detect_line(image, resolution)
-		line_detected = line_position is not None
-		
-		# ---------------------------------------------------------------------
-		# VISUALIZACIÓN (OPCIONAL - para debugging)
-		# ---------------------------------------------------------------------
-		# Crear máscara de la línea para mostrar en pantalla
-=======
 		# Detectar obstaculo y linea
 		obstacle_detected = detect_obstacle(image, resolution)
 		line_position = detect_line(image, resolution)
 		line_detected = line_position is not None
 		
 		# Mostrar mascara (para debug)
->>>>>>> 22179d3a0ff361a9a51d3535226abb4400bb09c8
 		hsv = cv.cvtColor(image, cv.COLOR_RGB2HSV)
 		lower_black = np.array([0, 0, 0])
 		upper_black = np.array([180, 255, 50])
@@ -357,47 +159,23 @@ def main():
 		cv.resizeWindow("Line Mask", resolution[0], resolution[1])
 		cv.imshow("Line Mask", mask_line)
 		
-<<<<<<< HEAD
-		# Salir si se presiona ESC
-=======
->>>>>>> 22179d3a0ff361a9a51d3535226abb4400bb09c8
 		key = cv.waitKey(5)
 		if key == 27:  # ESC para salir
 			break
 		
-<<<<<<< HEAD
-		# ---------------------------------------------------------------------
-		# MÁQUINA DE ESTADOS - Control del comportamiento del robot
-		# ---------------------------------------------------------------------
-=======
 		# Maquina de estados
->>>>>>> 22179d3a0ff361a9a51d3535226abb4400bb09c8
 		match state:
 			# -----------------------------------------------------------------
 			# ESTADO: SIGUIENDO LA LÍNEA
 			# -----------------------------------------------------------------
 			case State.FOLLOWING_LINE:
 				if obstacle_detected:
-<<<<<<< HEAD
-					# Obstáculo detectado -> Detenerse y esperar
-=======
 					# Parar si hay obstaculo
->>>>>>> 22179d3a0ff361a9a51d3535226abb4400bb09c8
 					sim.setJointTargetVelocity(handles['leftMotor'], 0)
 					sim.setJointTargetVelocity(handles['rightMotor'], 0)
 					state = State.WAITING_OBSTACLE
 					
 				elif line_detected:
-<<<<<<< HEAD
-					# Línea detectada -> Seguirla con control proporcional
-					if abs(line_position) < 0.2:
-						# Línea centrada -> Avanzar recto
-						sim.setJointTargetVelocity(handles['leftMotor'], BASE_SPEED)
-						sim.setJointTargetVelocity(handles['rightMotor'], BASE_SPEED)
-					elif line_position < 0:
-						# Línea a la izquierda -> Girar a la izquierda
-						# Reducir velocidad del motor izquierdo proporcionalmente
-=======
 					# Seguir la linea
 					if abs(line_position) < 0.2:
 						# Linea centrada, ir recto
@@ -405,7 +183,6 @@ def main():
 						sim.setJointTargetVelocity(handles['rightMotor'], BASE_SPEED)
 					elif line_position < 0:
 						# Linea a la izquierda, girar izq
->>>>>>> 22179d3a0ff361a9a51d3535226abb4400bb09c8
 						correction = abs(line_position) * BASE_SPEED
 						sim.setJointTargetVelocity(handles['leftMotor'], BASE_SPEED - correction)
 						sim.setJointTargetVelocity(handles['rightMotor'], BASE_SPEED)
@@ -466,11 +243,7 @@ def main():
 					state = State.SEARCHING_LINE
 					
 				else:
-<<<<<<< HEAD
-					# Obstáculo todavía presente -> Permanecer detenido
-=======
 					# Seguir parado
->>>>>>> 22179d3a0ff361a9a51d3535226abb4400bb09c8
 					sim.setJointTargetVelocity(handles['leftMotor'], 0)
 					sim.setJointTargetVelocity(handles['rightMotor'], 0)
 			
@@ -488,15 +261,5 @@ def main():
 	# -------------------------------------------------------------------------
 	sim.stopSimulation()  # Detener la simulación al salir
 
-<<<<<<< HEAD
-# =============================================================================
-# PUNTO DE ENTRADA DEL PROGRAMA
-# =============================================================================
-if __name__ == "__main__":
-	main()
-	
-#comentario para commit
-=======
 if _name_ == "_main_":
 	main()
->>>>>>> 22179d3a0ff361a9a51d3535226abb4400bb09c8
