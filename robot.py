@@ -85,6 +85,7 @@ def main():
 	
 	# Diccionario que almacena los manejadores de los motores y sensores del robot
 	handles = dict(
+		#tenemos que cambiar aqui los sensores y el robot para que coincida con el del escenario del video
 		leftMotor=sim.getObject("/PioneerP3DX/leftMotor"),
 		rightMotor=sim.getObject("/PioneerP3DX/rightMotor"),
 		camera=sim.getObject("/PioneerP3DX/camera"),
